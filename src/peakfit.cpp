@@ -4,7 +4,7 @@
 
 PeakFit::PeakFit(QObject *parent)
 	: QObject(parent),
-	isFeatureExtracting(false)
+	isPeakFitting(false)
 {
 
 }
@@ -14,15 +14,15 @@ void PeakFit::setParams(AxialPsfAnalyzerParameters params) {
 }
 
 void PeakFit::fitPeak(void* frameBuffer, unsigned int bitDepth, unsigned int samplesPerLine, unsigned int linesPerFrame) {
-	if (!this->isFeatureExtracting) {
-		this->isFeatureExtracting = true;
+	if (!this->isPeakFitting) {
+		this->isPeakFitting = true;
 
+		//average all A-scans within roi
 		QVector<qreal> averagedLine = this->calculateAveragedLine(frameBuffer, bitDepth, samplesPerLine, linesPerFrame);
-
 
 		//clamp averaged line to only use values within roi for fit
 		int startIndex = this->params.roi.normalized().x();
-		int endIndex = startIndex + this->params.roi.normalized().width();
+		int endIndex = startIndex + this->params.roi.normalized().width()-1;
 		QPair<QVector<qreal>, QVector<qreal>> result = this->clampLine(averagedLine, startIndex, endIndex);
 		QVector<qreal> xValuesAveragedLine = result.first;
 		QVector<qreal> yValuesAveragedLine = result.second;
@@ -40,16 +40,14 @@ void PeakFit::fitPeak(void* frameBuffer, unsigned int bitDepth, unsigned int sam
 
 		//perform Gauss fit on the data
 		GaussFit gaussFit(xData, yData);
-		gaussFit.setInitialGuessForM(this->findMaxValuePosition(averagedLine, -99999999));
+		int maxPos = this->findMaxValuePosition(averagedLine);
+		double maxValue = averagedLine.at(qAbs(maxPos));
+		gaussFit.setInitialGuessForM(maxPos);
+		gaussFit.setInitialGuessForA(maxValue);
 		gaussFit.fit();
 
-		// Get the fitted parameters
-		Eigen::VectorXd params = gaussFit.getParams();
-		double a = params[0];
-		double k = params[1];
-		double m = params[2];
-		double s = params[3];
-
+		//get the fitted Gaussian function
+		GaussFunction fittedGauss = gaussFit.getGaussianFunction();
 
 		//generate fitted curve data for plot
 		QVector<qreal> fitX;
@@ -58,24 +56,21 @@ void PeakFit::fitPeak(void* frameBuffer, unsigned int bitDepth, unsigned int sam
 		fitX.resize(fitLength);
 		fitY.resize(fitLength);
 		double step = static_cast<double>(samplesInClampedLine)/static_cast<double>(fitLength);
-		GaussFunction gauss = GaussFunction(a, k, m, s);
 		for (int i = 0; i < fitLength; i++) {
 			fitX[i] = xValuesAveragedLine.at(0)+ step*i;
-			fitY[i] = gauss(fitX.at(i));
+			fitY[i] = fittedGauss(fitX.at(i));
 		}
 		emit fitCalculated(fitX, fitY);
 
-
 		//calculate and emit fwhm
-		double fwhm = gauss.getFWHM();
+		double fwhm = fittedGauss.getFWHM();
 		emit fwhmCalculated(fwhm);
 
-
 		//emit peak position
-		emit peakPositionFound(m);
+		double peakPosition = fittedGauss.getM();
+		emit peakPositionFound(peakPosition);
 
-
-		this->isFeatureExtracting = false;
+		this->isPeakFitting = false;
 	}
 }
 
@@ -83,14 +78,16 @@ void PeakFit::setRoi(QRect roi) {
 	this->params.roi = roi;
 }
 
-int PeakFit::findMaxValuePosition(const QVector<qreal>& line, double threshold) {
+int PeakFit::findMaxValuePosition(const QVector<qreal>& line) {
 	if (line.isEmpty()) {
 		return -1;
 	}
-	qreal max = line[0];
+
 	int maxPos = -1;
+	qreal max = line[0];
+
 	for (int i = 1; i < line.size(); i++) {
-		if (line[i] > threshold && line[i] > max) {
+		if (line[i] > max) {
 			max = line[i];
 			maxPos = i;
 		}

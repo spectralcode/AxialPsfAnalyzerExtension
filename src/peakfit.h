@@ -17,10 +17,10 @@ public:
 	explicit PeakFit(QObject *parent = nullptr);
 
 private:
-	bool isFeatureExtracting;
+	bool isPeakFitting;
 	AxialPsfAnalyzerParameters params;
 
-	int findMaxValuePosition(const QVector<qreal>& line, double threshold);
+	int findMaxValuePosition(const QVector<qreal>& line);
 	QRect clampRoi(QRect roi, unsigned int samplesPerLine, unsigned int linesPerFrame);
 	QVector<qreal> calculateAveragedLine(void* frameBuffer, unsigned int bitDepth, unsigned int samplesPerLine, unsigned int linesPerFrame);
 	template <typename T> QVector<qreal> calculateAveragedLine(QRect roi, T* frame, unsigned int samplesPerLine, unsigned int linesPerFrame);

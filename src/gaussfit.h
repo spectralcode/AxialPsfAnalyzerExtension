@@ -10,15 +10,17 @@
 
 class GaussFit {
 public:
-	GaussFit(const Eigen::VectorXd &xData, const Eigen::VectorXd &yData);
+	GaussFit(const Eigen::VectorXd &xDataInit, const Eigen::VectorXd &yDataInit);
 	void fit();
+	void setInitialGuessForA(double a);
 	void setInitialGuessForM(double m);
-	Eigen::VectorXd getParams() const { return m_params; }
+	Eigen::VectorXd getParams() const { return this->params; }
+	GaussFunction getGaussianFunction() const { return this->gaussFunction; }
 
 private:
-	Eigen::VectorXd m_params;  // Parameters k, m, s
-	Eigen::VectorXd m_xData;   // Data points x
-	Eigen::VectorXd m_yData;   // Observed values y
+	Eigen::VectorXd xData;   // Data points x
+	Eigen::VectorXd yData;   // Observed values y
+	Eigen::VectorXd params;  // Parameters k, m, s
 	GaussFunction gaussFunction;
 };
 
