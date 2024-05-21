@@ -25,7 +25,7 @@ exists($$PLUGINEXPORTDIR){
 
 
 DEFINES += \
-	PEAKDETECTOR_LIBRARY \
+	AXIALPSFANALYZER_LIBRARY \
 	QT_DEPRECATED_WARNINGS #emit warnings if depracted Qt features are used
 
 SOURCES += \
