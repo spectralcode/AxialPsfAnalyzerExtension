@@ -1,5 +1,6 @@
 #include "axialpsfanalyzerform.h"
 #include "ui_axialpsfanalyzerform.h"
+#include <QtGlobal>
 
 AxialPsfAnalyzerForm::AxialPsfAnalyzerForm(QWidget *parent) :
 	QWidget(parent),
@@ -85,6 +86,15 @@ AxialPsfAnalyzerForm::AxialPsfAnalyzerForm(QWidget *parent) :
 		emit paramsChanged(this->parameters);
 	});
 
+	//splitter state
+	connect(this->ui->splitter, &QSplitter::splitterMoved, this, [this](){
+		this->parameters.splitterState = this->ui->splitter->saveState();
+		emit paramsChanged(this->parameters);
+	});
+
+	//window size and position changes are intercepted by event filter
+	this->installEventFilter(this);
+
 
 	//default values
 	this->parameters.bufferSource = PROCESSED;
@@ -116,6 +126,8 @@ void AxialPsfAnalyzerForm::setSettings(QVariantMap settings) {
 		this->parameters.autoScalingEnabled = settings.value(AXIALPSF_AUTOSCALING_ENABLED).toBool();
 		this->parameters.autoFetchingEnabled = settings.value(AXIALPSF_AUTOFETCHING_ENABLED).toBool();
 		this->parameters.fitModeLogarithmEnabled = settings.value(AXIALPSF_LOG_FIT_ENABLED).toBool();
+		this->parameters.splitterState = settings.value(AXIALPSF_SPLITTER_STATE).toByteArray();
+		this->parameters.windowState = settings.value(AXIALPSF_WINDOW_STATE).toByteArray();
 	}
 
 	//update GUI elements
@@ -127,6 +139,8 @@ void AxialPsfAnalyzerForm::setSettings(QVariantMap settings) {
 	this->ui->checkBox_autoscaling->setChecked(this->parameters.autoScalingEnabled);
 	this->enableAutoScalingLinePlot(this->parameters.autoScalingEnabled);
 	this->ui->radioButton_linearFitMode->setChecked(!this->parameters.fitModeLogarithmEnabled);
+	this->ui->splitter->restoreState(this->parameters.splitterState);
+	this->restoreGeometry(this->parameters.windowState);
 }
 
 void AxialPsfAnalyzerForm::getSettings(QVariantMap* settings) {
@@ -145,6 +159,18 @@ void AxialPsfAnalyzerForm::getSettings(QVariantMap* settings) {
 	settings->insert(AXIALPSF_AUTOSCALING_ENABLED, this->parameters.autoScalingEnabled);
 	settings->insert(AXIALPSF_AUTOFETCHING_ENABLED, this->parameters.autoFetchingEnabled);
 	settings->insert(AXIALPSF_LOG_FIT_ENABLED, this->parameters.fitModeLogarithmEnabled);
+	settings->insert(AXIALPSF_SPLITTER_STATE, this->parameters.splitterState);
+	settings->insert(AXIALPSF_WINDOW_STATE, this->parameters.windowState);
+}
+
+bool AxialPsfAnalyzerForm::eventFilter(QObject *watched, QEvent *event) {
+	if (watched == this) {
+		if (event->type() == QEvent::Resize || event->type() == QEvent::Move) {
+			this->parameters.windowState = this->saveGeometry();
+			emit paramsChanged(this->parameters);
+		}
+	}
+	return QWidget::eventFilter(watched, event);
 }
 
 void AxialPsfAnalyzerForm::setMaximumFrameNr(int maximum) {
@@ -200,7 +226,7 @@ void AxialPsfAnalyzerForm::plotPeakPositionIndicator(double pos) {
 }
 
 void AxialPsfAnalyzerForm::displayPeakPositionValue(double pos) {
-	if(pos < 0){
+	if(qIsNaN(pos)){
 		this->ui->lineEdit_peakPosition->setText(tr("No peak detected"));
 	} else {
 		this->ui->lineEdit_peakPosition->setText(QString::number(pos, 'f', 2));

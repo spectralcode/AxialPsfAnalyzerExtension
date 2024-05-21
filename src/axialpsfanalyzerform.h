@@ -28,6 +28,7 @@ public:
 	Ui::AxialPsfAnalyzerForm* ui;
 
 protected:
+	bool eventFilter(QObject *watched, QEvent *event) override;
 
 
 public slots:

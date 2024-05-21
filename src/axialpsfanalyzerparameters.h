@@ -5,6 +5,7 @@
 #include <QtGlobal>
 #include <QMetaType>
 #include <QRect>
+#include <QByteArray>
 
 #define AXIALPSF_SOURCE "image_source"
 #define AXIALPSF_FRAME "frame_number"
@@ -17,6 +18,8 @@
 #define AXIALPSF_AUTOSCALING_ENABLED "auto_scaling_enabled"
 #define AXIALPSF_AUTOFETCHING_ENABLED "auto_fetching_enabled"
 #define AXIALPSF_LOG_FIT_ENABLED "logarithm_fit_mode_enabled"
+#define AXIALPSF_SPLITTER_STATE "splitter_state"
+#define AXIALPSF_WINDOW_STATE "window_state"
 
 
 enum BUFFER_SOURCE{
@@ -33,6 +36,8 @@ struct AxialPsfAnalyzerParameters {
 	bool autoScalingEnabled;
 	bool autoFetchingEnabled;
 	bool fitModeLogarithmEnabled;
+	QByteArray splitterState;
+	QByteArray windowState;
 };
 Q_DECLARE_METATYPE(AxialPsfAnalyzerParameters)
 
