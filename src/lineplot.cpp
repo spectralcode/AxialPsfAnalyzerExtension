@@ -437,12 +437,14 @@ void LinePlot::changeEvent(QEvent *event) {
 }
 
 void LinePlot::mouseDoubleClickEvent(QMouseEvent *event) {
-	this->rescaleAxes();
-	this->zoomOutSlightly();
-	if(customRange){
-		this->scaleYAxis(this->customRangeLower, this->customRangeUpper);
+	if (event->button() == Qt::LeftButton) {
+		this->rescaleAxes();
+		this->zoomOutSlightly();
+		if(customRange){
+			this->scaleYAxis(this->customRangeLower, this->customRangeUpper);
+		}
+		this->replot();
 	}
-	this->replot();
 }
 
 void LinePlot::slot_saveToDisk() {
@@ -459,7 +461,7 @@ void LinePlot::slot_saveToDisk() {
 	}else if(defaultFilter == "Vector graphic (*.pdf)"){
 		saved = this->savePdf(fileName);
 	}else if(defaultFilter == "CSV (*.csv)"){
-		this->saveAllCurvesToFile(fileName);
+		saved = this->saveAllCurvesToFile(fileName);
 	}
 	if(saved){
 		emit info(tr("Plot saved to ") + fileName);
@@ -501,24 +503,63 @@ bool LinePlot::saveCurveDataToFile(QString fileName) {
 	return saved;
 }
 
-bool LinePlot::saveAllCurvesToFile(QString fileName) {
-	if(this->curve.size() != this->referenceCurve.size()){
-		return this->saveCurveDataToFile(fileName);
-	}else{
-		bool saved = false;
-		QFile file(fileName);
-		if (file.open(QFile::WriteOnly|QFile::Truncate)) {
-			QTextStream stream(&file);
-			stream << "Sample Number" << ";" << this->graph(0)->name() << ";" << this->graph(1)->name() << "\n";
-			for(int i = 0; i < this->sampleNumbers.size(); i++){
-				stream << QString::number(this->sampleNumbers.at(i)) << ";" << QString::number(this->curve.at(i)) << ";" << QString::number(this->referenceCurve.at(i)) << "\n";
-			}
-		file.close();
-		saved = true;
-		}
-		return saved;
+bool LinePlot::saveAllCurvesToFile( QString fileName) {
+	QFile file(fileName);
+	if (!file.open(QFile::WriteOnly | QFile::Truncate)) {
+		return false;
 	}
+
+	QTextStream stream(&file);
+	
+	//check how many graphs are in the plot
+	int numGraphs = this->graphCount();
+	if (numGraphs == 0) {
+		file.close(); 
+		return false; 
+	}
+
+	//write header with column names
+	stream << "Key";
+	for (int i = 0; i < numGraphs; i++) {
+		if (this->graph(i)) {
+			stream << ";" << this->graph(i)->name();
+		}
+	}
+	stream << "\n";
+
+	//use maps for storing key-value pairs for each graph
+	QVector<QMap<double, double>> allData(numGraphs);
+	for (int i = 0; i < numGraphs; i++) {
+		if (this->graph(i)) {
+			for (int j = 0; j < this->graph(i)->data()->size(); j++) {
+				allData[i][this->graph(i)->data()->at(j)->key] = this->graph(i)->data()->at(j)->value;
+			}
+		}
+	}
+
+	//combine all keys from all graphs
+	QSet<double> allKeys;
+	for (const auto &dataMap : allData) {
+		allKeys.unite(QSet<double>::fromList(dataMap.keys()));
+	}
+	QList<double> sortedKeys = QList<double>::fromSet(allKeys);
+	std::sort(sortedKeys.begin(), sortedKeys.end());
+
+	//write keys (x coordinate) and values (y coordinate)
+	for (double key : sortedKeys) {
+		stream << QString::number(key);
+		for (const auto &dataMap : allData) {
+			double value = dataMap.value(key, std::numeric_limits<double>::quiet_NaN());
+			QString valueString = std::isnan(value) ? "" : QString::number(value);
+			stream << ";" << valueString;
+		}
+		stream << "\n";
+	}
+
+	file.close();
+	return true;
 }
+
 
 void LinePlot::enableAutoScaling(bool autoScaleEnabled) {
 	this->autoScaleEnabled = autoScaleEnabled;
