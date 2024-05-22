@@ -9,7 +9,7 @@ GaussFunction::GaussFunction(double a, double k, double m, double s)
 
 // Compute the Gaussian value at x
 double GaussFunction::operator()(double x) const {
-	return this->k + this->a * qExp(-((x - this->m) * (x - this->m)) / (2.0 * this->s * this->s));
+	return this->k + (this->a - this->k) * qExp(-((x - this->m) * (x - this->m)) / (2.0 * this->s * this->s));
 }
 
 double GaussFunction::getA() const {
